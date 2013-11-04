@@ -18,11 +18,13 @@ int rodMinYPos = tankYpos + 10;
 int rodSpeed = 10;
 
 int textXpos = 550, textYpos = 200;
-int temperatureUpdateSpeed = 10;
+int temperatureUpdateSpeed = 20;
 
 int scientistMaxXpos = rodWidth/2 - 16 + rodXpos1 + 130, scientistMinXpos = rodXpos1 + rodWidth/2 - 16;
 int scientistYpos = tankYpos + tankHeight;
 int scientistWalkSpeed = 8;
+int scientistSpeechPos = 510;
+int welcomeSpeechDuration = 20;
 
 class Tank {
   void display() {
@@ -125,7 +127,7 @@ class Temperature {
     int temperatureSpeed;
     
     if(updateCount >= temperatureUpdateSpeed) {
-      temperatureSpeed = -(int)(getShielding(rodsY)/5 - 15 + Math.random()*5);
+      temperatureSpeed = -(int)(getShielding(rodsY)/5 - 13 + Math.random()*5);
       temperature += temperatureSpeed;
       updateCount = 0;
     } else updateCount++;
@@ -134,28 +136,94 @@ class Temperature {
   void display() {
     textFont(tempNumber, 50);
     fill(tempColor);
-    text(((Integer)temperature).toString(), textXpos, textYpos);
+    text(((Integer)temperature).toString()+ " °C", textXpos, textYpos);
   }
 }
 
 class Scientist {
   PImage sprite;
+  PImage[] comics;
   int spriteWidth = 32, spriteHeight = 48; // image is 128x192, composite of animation frames
   int frameCoords[] = {0,144}; // coordinates of current frame to draw
-  int currentX = scientistMinXpos;
+  int currentX = windowWidth;  // start outside window, waiting to walk in
   // should use enum for state, but processing.js might not support enums
-  int state = 0;  // 0 standing at left rod
+  int state = -1; // 0 standing at left rod
                   // 1 for walking right
                   // 2 for standing at right rod
                   // 3 for walking left
+                  // -1 is enter scene
+                  // -2 is stand to give welcome message
+                  // -3 is walk to left rod
+                  // 4 is for booking it
   int animationCount, animationSpeed = 3;
+  int comicToDisplay = -1;
   
   Scientist() {
     super();
     sprite = loadImage("scientist.png");
+    comics = new PImage[6];
+    comics[0] = loadImage("welcome.png");
+    comics[1] = loadImage("got300.png");
+    comics[2] = loadImage("warninglow.png");
+    comics[3] = loadImage("frozen.png");
+    comics[4] = loadImage("warninghigh.png");
+    comics[5] = loadImage("help.png");
   }
   
-  boolean isWalking() { return state == 1 || state == 3; }
+  boolean doneEntering() { return state>=0; }  // thumbs-up for other game controls to begin
+  
+  boolean isWalking() { return state == 1 || state == 3; }  // used to prevent control of rods when walking
+  
+  // walk to speech pos
+  void enterScene() {
+    state = -1;
+    frameCoords[1] = 48;
+    animateLeft();
+    walkTo(scientistSpeechPos);
+    checkSpeechLimits();
+  }
+  
+  // show welcome speech and pause for 6 seconds
+  void standSpeech() {
+    state = -2;
+    frameCoords[0] = frameCoords[1] = 0;
+    animateSpeech();
+  }
+  
+  void animateSpeech() {
+    animationCount++;
+    if(animationCount >= welcomeSpeechDuration) {
+      animationCount = 0;
+      state = -3;
+    }
+  }
+  
+  void walkToRod() {
+    state = -3;
+    frameCoords[1] = 48;
+    animateLeft();
+    walkTo(scientistMinXpos);
+    checkLeftLimit();
+  }
+  
+  void bookIt() {
+    state = 4;
+    animationSpeed=2;
+    scientistWalkSpeed=12;
+    frameCoords[1] = 96;
+    animateRight();
+    walkTo(900);
+  }
+  
+  void walkTo(int xPosition) {
+    if(currentX == xPosition) return;
+    
+    if(currentX > xPosition) {
+      currentX-=scientistWalkSpeed;
+    } else if(currentX < xPosition) {
+      currentX+=scientistWalkSpeed;
+    }
+  }
   
   void standLeft() {
     state = 0;
@@ -171,8 +239,7 @@ class Scientist {
     currentX = scientistMaxXpos;
   }
   
-  void walkLeft() {
-    state = 3;
+  void animateLeft() {
     animationCount++;
     if(animationCount >= animationSpeed) {
       animationCount = 0;
@@ -181,39 +248,64 @@ class Scientist {
         frameCoords[0] = 0;
     }
     else animationCount++;
+  }
+  
+  void animateRight() {
+    animationCount++;
+    if(animationCount >= animationSpeed) {
+      animationCount = 0;
+      frameCoords[0]+=spriteWidth;
+      if(frameCoords[0] >= 128)
+        frameCoords[0] = 0;
+    }
+    else animationCount++;
+  }
+  
+  void walkLeft() {
+    state = 3;
+    animateLeft();
     frameCoords[1] = 48;
-    currentX-=scientistWalkSpeed;
-    checkLimits();
+    walkTo(scientistMinXpos);
+    checkWalkLimits();
   }
   
   void walkRight() {
     state = 1;
-    animationCount++;
-    if(animationCount >= animationSpeed) {
-      animationCount = 0;
-      frameCoords[0]+=spriteWidth;
-      if(frameCoords[0] >= 128)
-        frameCoords[0] = 0;
-    }
-    else animationCount++;
+    animateRight();
     frameCoords[1] = 96;
-    currentX+=scientistWalkSpeed;
-    checkLimits();
+    walkTo(scientistMaxXpos);
+    checkWalkLimits();
   }
   
   // stops walking if reached destination
-  void checkLimits() {
+  void checkWalkLimits() {
     if(currentX >= scientistMaxXpos) {
       standRight();
     }
-    else if(currentX <= scientistMinXpos) {
+    else {
+      checkLeftLimit();
+    }
+  }
+  
+  // stops walking left if reached speech position during entering scene
+  void checkSpeechLimits() {
+    if(currentX <= scientistSpeechPos) {
+      currentX = scientistSpeechPos;
+      animationCount = 0;
+      comicToDisplay = 0;
+      standSpeech();
+    }
+  }
+  
+  void checkLeftLimit() {
+    if(currentX <= scientistMinXpos) {
       standLeft();
     }
   }
   
   void update() {
-    // check for keys pressed and update state accordingly
-    if(keyPressed && key == CODED) {
+    // check for keys pressed and update state accordingly. Negative states are passive, entering scene
+    if(doneEntering() && keyPressed && key == CODED) {
       switch(keyCode) {
         case LEFT:
         state = 3;
@@ -237,43 +329,200 @@ class Scientist {
       case 3:
       walkLeft();
       break;
+      case -1:
+      enterScene();
+      break;
+      case -2:
+      standSpeech();
+      break;
+      case -3:
+      walkToRod();
+      break;
+      case 4:
+      bookIt();
+      break;
     }
   }
   
   void display() {
     image(sprite.get(frameCoords[0],frameCoords[1],spriteWidth,spriteHeight),currentX,scientistYpos);
+    drawComic();
   }
+  
+  void drawComic() {
+    switch(comicToDisplay) {
+     case -1:
+     break;
+     case 5:
+     image(comics[5], currentX, scientistYpos-40);
+     break;
+     default:
+     image(comics[comicToDisplay], scientistSpeechPos, 500);
+     break;
+    }
+  }
+  
+}   
+
+class GameControl {
+  Tank tank;
+  NukeCores cores;
+  ControlRods rods;
+  Temperature temp;
+  Scientist madScientist;
+  
+  int waitCount, waitTime = 50;
+  
+  int phase;  // 0 is start screen
+              // 1 is scientist entering
+              // 2 is game bring T to 300 phase
+              // 3 is wait a bit to let player read text
+              // 4 is general game phase
+              // 5 is meltdown
+              // 6 is shutdown (freeze)
+              // 7 is scientist booking it before meltdown
+  
+  GameControl() {
+    super();
+    resetGame();
+  }
+  
+  void resetGame() {
+    phase = 0;
+    tank = new Tank();
+    cores = new NukeCores();
+    madScientist = new Scientist();
+    rods = new ControlRods(madScientist);
+    temp = new Temperature();
+  }
+  
+  void update() {
+    rods.update();
+    temp.update(rods.getY());
+    madScientist.update();
+  }
+  
+  void displayAll() {
+    background(255);
+    cores.display();
+    tank.display();
+    rods.display();
+    temp.display();
+    madScientist.display();
+  }
+
+  void phase0() {
+    if(mousePressed && mouseButton == LEFT) {
+      phase = 1;
+    }
+    displayStartScreen();
+  }
+  
+  void phase1() {
+    if(madScientist.doneEntering()) {
+      phase = 2;
+    }
+    madScientist.update();
+    displayAll();
+  }
+  
+  void phase2() {
+    update();
+    displayAll();
+    if(temp.temperature > 290) {
+      //temperatureUpdateSpeed = 10; 20 works better
+      madScientist.comicToDisplay = 1;
+      phase = 3;
+    }
+  }
+  
+  void phase3() {
+    rods.update();
+    madScientist.update();
+    displayAll();
+    if(waited()) phase = 4;
+  }
+  
+  boolean waited() {
+    waitCount++;
+    return waitCount > waitTime;
+  }
+  
+  void phase4() {
+    update();
+    displayAll();
+    if(temp.temperature < 100) {
+      madScientist.comicToDisplay = 3;
+      phase = 6;
+    } else if(temp.temperature < 200) {
+      madScientist.comicToDisplay = 2;
+    } else if(temp.temperature > 500) {
+      madScientist.comicToDisplay = 5;
+      phase = 7;
+      waitCount = 0;
+      waitTime = 100;
+    } else if(temp.temperature > 400) {
+      madScientist.comicToDisplay = 4;
+    }
+  }
+  
+  void phase5() {
+    background(0);
+    textFont(createFont("Arial",50,true), 50);
+    fill(color(255,0,0));
+    text("Boom! Explosion effect in progress :)", 10, 400);
+  }
+  
+  void phase7() {
+    madScientist.state = 4;
+    update();
+    displayAll();
+    if(waited()) phase = 5;
+  }
+  
+  void updateAndDisplay() {
+    switch(phase) {
+      case 0:
+      phase0();
+      break;
+      case 1:
+      phase1();
+      break;
+      case 2:
+      phase2();
+      break;
+      case 3:
+      phase3();
+      break;
+      case 4:
+      phase4();
+      break;
+      case 5:
+      phase5();
+      break;
+      case 7:
+      phase7();
+      break;
+    }
+  }
+  
+  void displayStartScreen() {
+    background(0);
+    textFont(createFont("Arial",50,true), 50);
+    fill(color(80,255,80));
+    text("Left Click to Start!", 100, 400);
+  }
+  
 }
 
-Tank tank;
-NukeCores cores;
-ControlRods rods;
-Temperature temp;
-Scientist madScientist;
+GameControl game;
 
 void setup() {
   frameRate(framerate);
-  size(windowWidth, windowHeight, P2D);
-  tank = new Tank();
-  cores = new NukeCores();
-  madScientist = new Scientist();
-  rods = new ControlRods(madScientist);
-  temp = new Temperature();
-}
-
-void update() {
-  rods.update();
-  temp.update(rods.getY());
-  madScientist.update();
+  size(windowWidth+70, windowHeight, P2D);
+  game = new GameControl();
 }
 
 void draw() {
-  update();
-  background(255);
-  cores.display();
-  tank.display();
-  rods.display();
-  temp.display();
-  madScientist.display();
-  //println(temp.getShielding(rods.getY()));
+  game.updateAndDisplay();  
 }
