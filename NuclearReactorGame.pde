@@ -23,8 +23,11 @@ int temperatureUpdateSpeed = 20;
 int scientistMaxXpos = rodWidth/2 - 16 + rodXpos1 + 130, scientistMinXpos = rodXpos1 + rodWidth/2 - 16;
 int scientistYpos = tankYpos + tankHeight;
 int scientistWalkSpeed = 8;
-int scientistSpeechPos = 510;
-int welcomeSpeechDuration = 20;
+int scientistSpeechPos = 500;
+int welcomeSpeechDuration = 80;
+
+int smallExplosionDuration = 60;
+int bigExplosionDuration = 160;
 
 class Tank {
   void display() {
@@ -101,6 +104,11 @@ class ControlRods {
     noStroke();
     rect(rodXpos1, rod1Y, rodWidth, rodHeight);
     rect(rodXpos1 + 130, rod2Y, rodWidth, rodHeight);
+    // add gray lines from rods to bottom of tank
+    strokeWeight(2);
+    stroke(150);
+    line(rodXpos1 + rodWidth/2, rod1Y+rodHeight, rodXpos1 + rodWidth/2, tankYpos + tankHeight);
+    line(rodXpos1 + rodWidth/2 + 130, rod2Y+rodHeight, rodXpos1 + rodWidth/2 + 130, tankYpos + tankHeight);
   }
 }
 
@@ -165,7 +173,7 @@ class Scientist {
     comics[0] = loadImage("welcome.png");
     comics[1] = loadImage("got300.png");
     comics[2] = loadImage("warninglow.png");
-    comics[3] = loadImage("frozen.png");
+    //comics[3] = loadImage("frozen.png");
     comics[4] = loadImage("warninghigh.png");
     comics[5] = loadImage("help.png");
   }
@@ -345,7 +353,9 @@ class Scientist {
   }
   
   void display() {
-    image(sprite.get(frameCoords[0],frameCoords[1],spriteWidth,spriteHeight),currentX,scientistYpos);
+    PImage toDraw = sprite.get(frameCoords[0],frameCoords[1],spriteWidth,spriteHeight);
+    toDraw.resize(0,96);
+    image(toDraw,currentX,scientistYpos);
     drawComic();
   }
   
@@ -357,7 +367,7 @@ class Scientist {
      image(comics[5], currentX, scientistYpos-40);
      break;
      default:
-     image(comics[comicToDisplay], scientistSpeechPos, 500);
+     image(comics[comicToDisplay], scientistSpeechPos, 300);
      break;
     }
   }
@@ -370,8 +380,9 @@ class GameControl {
   ControlRods rods;
   Temperature temp;
   Scientist madScientist;
+  Explosions explosions;
   
-  int waitCount, waitTime = 50;
+  int waitCount, waitTime = 0;
   
   int phase;  // 0 is start screen
               // 1 is scientist entering
@@ -394,6 +405,7 @@ class GameControl {
     madScientist = new Scientist();
     rods = new ControlRods(madScientist);
     temp = new Temperature();
+    explosions = new Explosions();
   }
   
   void update() {
@@ -467,10 +479,20 @@ class GameControl {
   }
   
   void phase5() {
+    displayAll();
+    explosions.update();
+    explosions.display();
+    /*background(0);
+    textFont(createFont("Arial",50,true), 50);
+    fill(color(255,0,0));
+    text("Boom! Explosion effect in progress :)", 10, 400);*/
+  }
+  
+  void phase6() {
     background(0);
     textFont(createFont("Arial",50,true), 50);
     fill(color(255,0,0));
-    text("Boom! Explosion effect in progress :)", 10, 400);
+    text("Reactor froze.", 10, 400);
   }
   
   void phase7() {
@@ -500,6 +522,9 @@ class GameControl {
       case 5:
       phase5();
       break;
+      case 6:
+      phase6();
+      break;
       case 7:
       phase7();
       break;
@@ -512,14 +537,118 @@ class GameControl {
     fill(color(80,255,80));
     text("Left Click to Start!", 100, 400);
   }
-  
 }
+
+class Explosions {
+  PImage[] smallExplosionGif;
+  PImage[] bigExplosionGif;
+  int smallExplCounter = 0, bigExplCounter = 0;
+  
+  boolean switchGif = false;
+  
+  SmallExplosion[] smallExplosions;
+  BigExplosion bigExplosion;
+  
+  Explosions() {
+    super();
+    // load gif frames for small and big explosion
+    smallExplosionGif = new PImage[12];
+    bigExplosionGif = new PImage[16];
+    for(int i=0; i < 12; i++) {
+      smallExplosionGif[i] = loadImage("expl"+(i+1)+".png");
+    }
+    for(int i=0; i < 16; i++) {
+      bigExplosionGif[i] = loadImage("eb"+i+".png");
+    }
+    smallExplosions = new SmallExplosion[3];
+    for(int i=0; i < 3; i++) {
+      smallExplosions[i] = new SmallExplosion(nukeXpos + 125*i - 10, nukeYpos + nukeHeight/2);
+    }
+    bigExplosion = new BigExplosion();
+  }
+  
+  void update() {
+    if(!switchGif) {
+      smallExplCounter++;
+      if(smallExplCounter > smallExplosionDuration) switchGif = true;
+      for(SmallExplosion i : smallExplosions) i.update();
+    } else {
+      //bigExplosionCounter++;
+      bigExplosion.update();
+    }
+  }
+  
+  void display() {
+    if(!switchGif) {
+      for(SmallExplosion i : smallExplosions) i.display();
+    } else {
+      background(0);
+      bigExplosion.display();
+    }
+  }
+
+  
+  class SmallExplosion {
+    int xPos,yPos;
+    int counter = 0;
+    int gifIndex = 0;
+    boolean finished = false;
+    
+    SmallExplosion(int x, int y) {
+      super();
+      xPos = x;
+      yPos = y;
+    }
+    
+    void update() {
+      if(finished) return;
+      
+      counter++;
+      
+      if(counter > 5) {
+        counter = 0;
+        gifIndex++;
+        if(gifIndex > 11) finished = true;
+      }
+    }
+    
+    void display() {
+      if(finished) return;
+      image(smallExplosionGif[gifIndex],xPos,yPos);
+    }
+  }
+  
+  class BigExplosion {
+    int counter = 0;
+    int gifIndex = 0;
+    boolean finished = false;
+    
+    void update() {
+      if(finished) return;
+      
+      counter++;
+      
+      if(counter > 4) {
+        counter = 0;
+        gifIndex++;
+        if(gifIndex > 15) finished = true;
+      }
+    }
+    
+    void display() {
+      if(finished) return;
+      bigExplosionGif[gifIndex].resize(windowWidth,windowHeight);
+      image(bigExplosionGif[gifIndex],0,0);
+    }
+  } 
+}
+
 
 GameControl game;
 
 void setup() {
   frameRate(framerate);
-  size(windowWidth+70, windowHeight, P2D);
+  size(windowWidth, windowHeight, P2D);
   game = new GameControl();
 }
 
