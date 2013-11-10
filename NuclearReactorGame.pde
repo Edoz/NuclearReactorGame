@@ -39,12 +39,19 @@ class Tank {
 }
 
 class NukeCores {
+  PImage symbol;
+  
+  NukeCores() {
+    symbol = loadImage("radioactivesymnbol.png");
+  }
+  
   void display() {
     fill(color(nukeColor));
     stroke(color(nukeColor));
     for(int i = 0; i < 300; i += 125) {
       rect(nukeXpos + i, nukeYpos, nukeWidth, nukeHeight, 5);
     }
+    
   }
 }
 
@@ -367,12 +374,11 @@ class Scientist {
      image(comics[5], currentX, scientistYpos-40);
      break;
      default:
-     image(comics[comicToDisplay], scientistSpeechPos, 300);
+     image(comics[comicToDisplay], scientistSpeechPos+8, 300);
      break;
     }
   }
-  
-}   
+}
 
 class GameControl {
   Tank tank;
@@ -413,7 +419,7 @@ class GameControl {
     temp.update(rods.getY());
     madScientist.update();
   }
-  
+
   void displayAll() {
     background(255);
     cores.display();
@@ -429,7 +435,7 @@ class GameControl {
     }
     displayStartScreen();
   }
-  
+
   void phase1() {
     if(madScientist.doneEntering()) {
       phase = 2;
@@ -472,7 +478,7 @@ class GameControl {
       madScientist.comicToDisplay = 5;
       phase = 7;
       waitCount = 0;
-      waitTime = 100;
+      waitTime = 50;
     } else if(temp.temperature > 400) {
       madScientist.comicToDisplay = 4;
     }
@@ -482,10 +488,6 @@ class GameControl {
     displayAll();
     explosions.update();
     explosions.display();
-    /*background(0);
-    textFont(createFont("Arial",50,true), 50);
-    fill(color(255,0,0));
-    text("Boom! Explosion effect in progress :)", 10, 400);*/
   }
   
   void phase6() {
@@ -530,12 +532,25 @@ class GameControl {
       break;
     }
   }
-  
+
   void displayStartScreen() {
-    background(0);
-    textFont(createFont("Arial",50,true), 50);
-    fill(color(80,255,80));
-    text("Left Click to Start!", 100, 400);
+    background(255);
+    image(loadImage("startScreen.png"),0,0);
+    textFont(createFont("Calibri",50,true), 50);
+    fill(0);
+    text("  Welcome to the reactor", 255, 200);
+    text("           control room!", 255, 250);
+    textFont(createFont("Calibri",25,true), 25);
+    text(" left mouse click to start at any time", 300, 340);
+    textFont(createFont("Calibri",39,true), 39);
+    text("You will control the reactor temperature", 10, 450);
+    text(" through the moving rods.", 10, 490);
+    text("To produce energy, the temperature", 10, 540);
+    text(" should stay around 300 °C.", 10, 580);
+    text("If you let the temperature reach 500 °C,", 10, 630);
+    text(" the reactor will incur in a meltdown.", 10, 670);
+    text("If you let the temperature drop below 100 °C,",10,720);
+    text(" the reaction will shutdown, producing no power.", 10, 760);
   }
 }
 
@@ -562,7 +577,7 @@ class Explosions {
     }
     smallExplosions = new SmallExplosion[3];
     for(int i=0; i < 3; i++) {
-      smallExplosions[i] = new SmallExplosion(nukeXpos + 125*i - 10, nukeYpos + nukeHeight/2);
+      smallExplosions[i] = new SmallExplosion(nukeXpos + 125*i - 50, nukeYpos - 40);
     }
     bigExplosion = new BigExplosion();
   }
@@ -605,7 +620,7 @@ class Explosions {
       
       counter++;
       
-      if(counter > 5) {
+      if(counter > 2) {
         counter = 0;
         gifIndex++;
         if(gifIndex > 11) finished = true;
@@ -614,6 +629,7 @@ class Explosions {
     
     void display() {
       if(finished) return;
+      smallExplosionGif[gifIndex].resize(149,340);
       image(smallExplosionGif[gifIndex],xPos,yPos);
     }
   }
@@ -628,7 +644,7 @@ class Explosions {
       
       counter++;
       
-      if(counter > 4) {
+      if(counter > 2) {
         counter = 0;
         gifIndex++;
         if(gifIndex > 15) finished = true;
