@@ -5,7 +5,7 @@ int framerate = 30;
 int tankWidth = 400, tankHeight = 600;
 int tankCornerRadius = 50;
 int tankBorderColor = 0;
-int tankXpos = windowWidth/8, tankYpos = windowHeight/8;
+int tankXpos = (int)windowWidth/8, tankYpos = (int)windowHeight/8;
 
 int nukeWidth = 50, nukeHeight = 250;
 int nukeXpos = tankXpos + 50, nukeYpos = (tankHeight - nukeHeight) - 150;
@@ -20,7 +20,7 @@ int rodSpeed = 10;
 int textXpos = 550, textYpos = 200;
 int temperatureUpdateSpeed = 20;
 
-int scientistMaxXpos = rodWidth/2 - 16 + rodXpos1 + 130, scientistMinXpos = rodXpos1 + rodWidth/2 - 16;
+int scientistMaxXpos = (int)rodWidth/2 - 16 + rodXpos1 + 130, scientistMinXpos = rodXpos1 + (int)rodWidth/2 - 16;
 int scientistYpos = tankYpos + tankHeight;
 int scientistWalkSpeed = 8;
 int scientistSpeechPos = 500;
@@ -46,9 +46,9 @@ class NukeCores {
   }
   
   void display() {
-    stroke(color(nukeColor));
+    stroke(nukeColor);
     for(int i = 0; i < 300; i += 125) {
-      fill(color(nukeColor));
+      fill(nukeColor);
       rect(nukeXpos + i, nukeYpos, nukeWidth, nukeHeight, 5);
       image(symbol, nukeXpos + i, nukeYpos + 5);
       textFont(createFont("Arial",35,true), 35);
@@ -110,7 +110,7 @@ class ControlRods {
     if( rod2Y < rodMaxYPos ) rod2Y++;
   }
   
-  int getY() { return (rod1Y + rod2Y)/2; }
+  int getY() { return (int)(rod1Y + rod2Y)/2; }
   
   void display() {
     fill(0);
@@ -120,22 +120,23 @@ class ControlRods {
     // add gray lines from rods to bottom of tank
     strokeWeight(2);
     stroke(150);
-    line(rodXpos1 + rodWidth/2, rod1Y+rodHeight, rodXpos1 + rodWidth/2, tankYpos + tankHeight);
-    line(rodXpos1 + rodWidth/2 + 130, rod2Y+rodHeight, rodXpos1 + rodWidth/2 + 130, tankYpos + tankHeight);
+    line(rodXpos1 + (int)rodWidth/2, rod1Y+rodHeight, rodXpos1 + (int)rodWidth/2, tankYpos + tankHeight);
+    line(rodXpos1 + (int)rodWidth/2 + 130, rod2Y+rodHeight, rodXpos1 + (int)rodWidth/2 + 130, tankYpos + tankHeight);
   }
 }
 
 class StatusBar {
-  PFont text, tempNumber, statusText;
+  PFont txtFont, tempNumber, statusText;
   color red, green, orange, blue;
   int temperature;
   int updateCount;
-  int powerStatus = 0; // 0 down, 1 up, -1 up-orange
+  int powerStatus; // 0 down, 1 up, -1 up-orange
   boolean heatingUp = false;
   boolean startingUp = true;
   
   StatusBar() {
-    text = createFont("Arial",20,true);
+    super();
+    txtFont = createFont("Arial",20,true);
     tempNumber = createFont("Arial",50,true);
     statusText = createFont("Arial", 25,true);
     red = color(255,0,0);
@@ -143,6 +144,7 @@ class StatusBar {
     orange = color(255, 125, 0);
     blue = color(0,0,255);
     temperature = 200;
+    powerStatus = 0;
   }
   
   // returns value between 0 and 100. 0 is no shielding, 100 is full shielding (shielding of cores by rods)
@@ -175,8 +177,8 @@ class StatusBar {
   void display() {
     drawGrid();
     // texts
-    textFont(text, 20);
     fill(0);
+    textFont(txtFont, 20);
     text("Temperature:", 5, 20);
     text("Energy production:", 210, 20);
     text("Nuclear core state:", 410, 20);
@@ -462,6 +464,7 @@ class GameControl {
   StatusBar bar;
   Scientist madScientist;
   Explosions explosions;
+  PImage startScreen;
   
   int waitCount, waitTime = 0;
   
@@ -487,6 +490,7 @@ class GameControl {
     rods = new ControlRods(madScientist);
     bar = new StatusBar();
     explosions = new Explosions();
+    startScreen = loadImage("startScreen.png");
   }
   
   void update() {
@@ -612,7 +616,7 @@ class GameControl {
 
   void displayStartScreen() {
     background(255);
-    image(loadImage("startScreen.png"),0,0);
+    image(startScreen,1,1);
     textFont(createFont("Calibri",50,true), 50);
     fill(0);
     text("  Welcome to the reactor", 255, 200);
