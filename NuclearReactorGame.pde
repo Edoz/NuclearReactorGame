@@ -42,16 +42,22 @@ class NukeCores {
   PImage symbol;
   
   NukeCores() {
-    symbol = loadImage("radioactivesymnbol.png");
+    symbol = loadImage("radioactivitysymbol.png");
   }
   
   void display() {
-    fill(color(nukeColor));
     stroke(color(nukeColor));
     for(int i = 0; i < 300; i += 125) {
+      fill(color(nukeColor));
       rect(nukeXpos + i, nukeYpos, nukeWidth, nukeHeight, 5);
+      image(symbol, nukeXpos + i, nukeYpos + 5);
+      textFont(createFont("Arial",35,true), 35);
+      fill(0, 102, 153);
+      text("C", nukeXpos + i + 12, nukeYpos + 90);
+      text("O", nukeXpos + i + 12, nukeYpos + 140);
+      text("R", nukeXpos + i + 12, nukeYpos + 190);
+      text("E", nukeXpos + i + 12, nukeYpos + 240);
     }
-    
   }
 }
 
@@ -119,15 +125,23 @@ class ControlRods {
   }
 }
 
-class Temperature {
-  PFont tempText, tempNumber;
-  color tempColor;
+class StatusBar {
+  PFont text, tempNumber, statusText;
+  color red, green, orange, blue;
   int temperature;
   int updateCount;
+  int powerStatus = 0; // 0 down, 1 up, -1 up-orange
+  boolean heatingUp = false;
+  boolean startingUp = true;
   
-  Temperature() {
+  StatusBar() {
+    text = createFont("Arial",20,true);
     tempNumber = createFont("Arial",50,true);
-    tempColor = color(255,0,0);
+    statusText = createFont("Arial", 25,true);
+    red = color(255,0,0);
+    green = color(0, 255, 0);
+    orange = color(255, 125, 0);
+    blue = color(0,0,255);
     temperature = 200;
   }
   
@@ -140,18 +154,79 @@ class Temperature {
   
   void update(int rodsY) {
     int temperatureSpeed;
-    
     if(updateCount >= temperatureUpdateSpeed) {
       temperatureSpeed = -(int)(getShielding(rodsY)/5 - 13 + Math.random()*5);
+      if(temperatureSpeed > 0) heatingUp = true;
+      else heatingUp = false;
       temperature += temperatureSpeed;
       updateCount = 0;
     } else updateCount++;
   }
-    
+  
+  void setStartingUpFalse() { startingUp = false; }
+  
+  void drawGrid() {
+    stroke(0);
+    line(0, 90, windowWidth, 90);
+    line(200, 0, 200, 90);
+    line(400, 0, 400, 90);
+  }
+
   void display() {
+    drawGrid();
+    // texts
+    textFont(text, 20);
+    fill(0);
+    text("Temperature:", 5, 20);
+    text("Energy production:", 210, 20);
+    text("Nuclear core state:", 410, 20);
+    // numbers/statuses
+    // temperature
     textFont(tempNumber, 50);
-    fill(tempColor);
-    text(((Integer)temperature).toString()+ " °C", textXpos, textYpos);
+    fill(red);
+    text(((Integer)temperature).toString()+ " °C", 20, 74);
+    // power  
+    if(powerStatus == 0) {
+      text("DOWN", 220, 74);
+    } else if(powerStatus == -1) {
+      fill(orange);
+      text("UP", 220, 74);
+    } else {
+      fill(green);
+      text("UP", 220, 74);
+    }
+    // status
+    textFont(statusText, 25);
+    if(startingUp) {
+      fill(orange);
+      text("starting up", 410, 76);
+    } else if(temperature > 400) {
+      // 0 down, 1 up, -1 up-orange
+      powerStatus = -1;
+      fill(red);
+      text("MELTDOWN APPROACHING!", 410, 76);
+    } else if(temperature > 200) {
+      powerStatus = 1;
+      fill(green);
+      text("happily producing energy!", 410, 76);
+    } else if(temperature > 100) {
+      powerStatus = -1;
+      fill(orange);
+      text("shutdown approaching!", 410, 76);
+    } else {
+      powerStatus = 0;
+      fill(red);
+      text("reaction shut down!", 410, 76);
+    }
+    
+    if(heatingUp) {
+      fill(orange);
+      text("heating up", 410, 50);
+    } else {
+      fill(blue);
+      text("cooling down", 410, 50);
+    }
+      
   }
 }
 
@@ -169,7 +244,7 @@ class Scientist {
                   // -1 is enter scene
                   // -2 is stand to give welcome message
                   // -3 is walk to left rod
-                  // 4 is for booking it
+                  // -4 is for booking it
   int animationCount, animationSpeed = 3;
   int comicToDisplay = -1;
   
@@ -198,7 +273,7 @@ class Scientist {
     checkSpeechLimits();
   }
   
-  // show welcome speech and pause for 6 seconds
+  // show welcome speech and pause for a few seconds
   void standSpeech() {
     state = -2;
     frameCoords[0] = frameCoords[1] = 0;
@@ -222,7 +297,7 @@ class Scientist {
   }
   
   void bookIt() {
-    state = 4;
+    state = -4;
     animationSpeed=2;
     scientistWalkSpeed=12;
     frameCoords[1] = 96;
@@ -353,7 +428,7 @@ class Scientist {
       case -3:
       walkToRod();
       break;
-      case 4:
+      case -4:
       bookIt();
       break;
     }
@@ -384,7 +459,7 @@ class GameControl {
   Tank tank;
   NukeCores cores;
   ControlRods rods;
-  Temperature temp;
+  StatusBar bar;
   Scientist madScientist;
   Explosions explosions;
   
@@ -410,13 +485,13 @@ class GameControl {
     cores = new NukeCores();
     madScientist = new Scientist();
     rods = new ControlRods(madScientist);
-    temp = new Temperature();
+    bar = new StatusBar();
     explosions = new Explosions();
   }
   
   void update() {
     rods.update();
-    temp.update(rods.getY());
+    bar.update(rods.getY());
     madScientist.update();
   }
 
@@ -425,7 +500,7 @@ class GameControl {
     cores.display();
     tank.display();
     rods.display();
-    temp.display();
+    bar.display();
     madScientist.display();
   }
 
@@ -447,10 +522,12 @@ class GameControl {
   void phase2() {
     update();
     displayAll();
-    if(temp.temperature > 290) {
+    if(bar.temperature > 290) {
       //temperatureUpdateSpeed = 10; 20 works better
       madScientist.comicToDisplay = 1;
       phase = 3;
+    } else if(bar.temperature < 120) {
+      phase = 4;
     }
   }
   
@@ -458,7 +535,7 @@ class GameControl {
     rods.update();
     madScientist.update();
     displayAll();
-    if(waited()) phase = 4;
+    if(waited()) { phase = 4; bar.setStartingUpFalse(); }
   }
   
   boolean waited() {
@@ -469,17 +546,17 @@ class GameControl {
   void phase4() {
     update();
     displayAll();
-    if(temp.temperature < 100) {
+    if(bar.temperature < 100) {
       madScientist.comicToDisplay = 3;
       phase = 6;
-    } else if(temp.temperature < 200) {
+    } else if(bar.temperature < 200) {
       madScientist.comicToDisplay = 2;
-    } else if(temp.temperature > 500) {
+    } else if(bar.temperature > 500) {
       madScientist.comicToDisplay = 5;
       phase = 7;
       waitCount = 0;
       waitTime = 50;
-    } else if(temp.temperature > 400) {
+    } else if(bar.temperature > 400) {
       madScientist.comicToDisplay = 4;
     }
   }
@@ -491,14 +568,14 @@ class GameControl {
   }
   
   void phase6() {
-    background(0);
+    background(color(173,253,255));
     textFont(createFont("Arial",50,true), 50);
-    fill(color(255,0,0));
-    text("Reactor froze.", 10, 400);
+    fill(color(0,0,255));
+    text("Temperature got too low\nand the reaction shut down!\nrefresh page to try again", 40, 300);
   }
   
   void phase7() {
-    madScientist.state = 4;
+    madScientist.state = -4;
     update();
     displayAll();
     if(waited()) phase = 5;
@@ -652,13 +729,18 @@ class Explosions {
     }
     
     void display() {
-      if(finished) return;
+      if(finished) {
+        background(0);
+        textFont(createFont("Arial",45,true), 45);
+        fill(color(255,0,0));
+        text("Temperature got too high,\ncausing a meltdown and\nexplosions thoroughout the\npower plant!\nrefresh page to try again", 50, 300);
+        return;
+      }
       bigExplosionGif[gifIndex].resize(windowWidth,windowHeight);
       image(bigExplosionGif[gifIndex],0,0);
     }
   } 
 }
-
 
 GameControl game;
 
