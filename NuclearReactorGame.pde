@@ -624,8 +624,8 @@ class GameControl {
     textFont(createFont("Calibri",25,true), 25);
     text(" left mouse click to start at any time", 300, 340);
     textFont(createFont("Calibri",39,true), 39);
-    text("You will control the reactor temperature", 10, 450);
-    text(" through the moving rods.", 10, 490);
+    text("Move the control rods with the keyboard", 10, 450);
+    text(" arrows to change the reactor temperature.", 10, 490);
     text("To produce energy, the temperature", 10, 540);
     text(" should stay around 300 °C.", 10, 580);
     text("If you let the temperature reach 500 °C,", 10, 630);
